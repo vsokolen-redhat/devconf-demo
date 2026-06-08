@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain — Build Provenance</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e0e0e0;
+            --dim: #8b8fa3;
+            --accent: {% if is_trusted %}#22c55e{% else %}#f59e0b{% endif %};
+            --accent-bg: {% if is_trusted %}rgba(34,197,94,0.1){% else %}rgba(245,158,11,0.1){% endif %};
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .header h1 span { color: var(--accent); }
+
+        .header p {
+            color: var(--dim);
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 1rem 0 2rem;
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            {% if is_trusted %}
+            animation: pulse 2s infinite;
+            {% endif %}
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--dim);
+            margin-bottom: 0.75rem;
+        }
+
+        .field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .field:last-child { border-bottom: none; }
+
+        .field-label {
+            color: var(--dim);
+            font-size: 0.8rem;
+        }
+
+        .field-value {
+            font-size: 0.8rem;
+            color: var(--text);
+            text-align: right;
+            max-width: 60%;
+            word-break: break-all;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tag-yes {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .tag-no {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: var(--dim);
+            font-size: 0.7rem;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .comparison {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .comparison h2 {
+            font-size: 0.9rem;
+            color: var(--dim);
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .compare-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+
+        .compare-row:last-child { border-bottom: none; }
+        .compare-left { text-align: right; color: #f59e0b; }
+        .compare-center { color: var(--dim); font-size: 0.7rem; }
+        .compare-right { color: #22c55e; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Trust<span>Chain</span></h1>
+        <p>Container Build Provenance Dashboard</p>
+    </div>
+
+    <div class="status-badge">
+        <span class="dot"></span>
+        {% if is_trusted %}
+        TRUSTED BUILD — Konflux Pipeline
+        {% else %}
+        LOCAL BUILD — No Trust Chain
+        {% endif %}
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Build Information</div>
+            <div class="field">
+                <span class="field-label">Pipeline</span>
+                <span class="field-value">{{ info.pipeline }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Build Time</span>
+                <span class="field-value">{{ info.build_time }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Base Image</span>
+                <span class="field-value">{{ info.base_image }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Source</span>
+                <span class="field-value">{{ info.source_repo }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Commit</span>
+                <span class="field-value">{{ info.commit_sha[:12] if info.commit_sha != 'unknown' else 'unknown' }}</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Trust Signals</div>
+            <div class="field">
+                <span class="field-label">SLSA Level</span>
+                <span class="field-value">
+                    {% if info.slsa_level != 'none' %}
+                    <span class="tag tag-yes">{{ info.slsa_level }}</span>
+                    {% else %}
+                    <span class="tag tag-no">none</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="field">
+                <span class="field-label">Hermetic Build</span>
+                <span class="field-value">
+                    {% if info.hermetic == 'true' %}
+                    <span class="tag tag-yes">yes</span>
+                    {% else %}
+                    <span class="tag tag-no">no</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="field">
+                <span class="field-label">Image Signed</span>
+                <span class="field-value">
+                    {% if info.signed == 'true' %}
+                    <span class="tag tag-yes">cosign</span>
+                    {% else %}
+                    <span class="tag tag-no">unsigned</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="field">
+                <span class="field-label">SBOM</span>
+                <span class="field-value">
+                    {% if info.sbom == 'true' %}
+                    <span class="tag tag-yes">generated</span>
+                    {% else %}
+                    <span class="tag tag-no">missing</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-title">Image Artifact</div>
+            <div class="field">
+                <span class="field-label">Image URL</span>
+                <span class="field-value">{{ info.image_url }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Digest</span>
+                <span class="field-value">{{ info.image_digest }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="comparison">
+        <h2>podman build vs. Konflux build</h2>
+        <div class="card">
+            <div class="compare-row">
+                <span class="compare-left">no signature</span>
+                <span class="compare-center">Signing</span>
+                <span class="compare-right">cosign + keyless</span>
+            </div>
+            <div class="compare-row">
+                <span class="compare-left">no provenance</span>
+                <span class="compare-center">SLSA</span>
+                <span class="compare-right">Level 3</span>
+            </div>
+            <div class="compare-row">
+                <span class="compare-left">network access</span>
+                <span class="compare-center">Isolation</span>
+                <span class="compare-right">hermetic</span>
+            </div>
+            <div class="compare-row">
+                <span class="compare-left">manual</span>
+                <span class="compare-center">SBOM</span>
+                <span class="compare-right">auto-generated</span>
+            </div>
+            <div class="compare-row">
+                <span class="compare-left">none</span>
+                <span class="compare-center">CVE Scan</span>
+                <span class="compare-right">Clair + ClamAV</span>
+            </div>
+            <div class="compare-row">
+                <span class="compare-left">trust me</span>
+                <span class="compare-center">Policy</span>
+                <span class="compare-right">Enterprise Contract</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>DevConf.CZ 2026 — From Podman to Production</p>
+        <p><a href="/api/provenance">GET /api/provenance</a> — raw build metadata as JSON</p>
+    </div>
+</body>
+</html>
