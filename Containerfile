@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:44
+FROM registry.fedoraproject.org/fedora:45
 
 RUN dnf install -y python3-pip && dnf clean all
 COPY app/ /opt/app/
